@@ -1,0 +1,27 @@
+In many practical applications, a machine learning model does not receive
+all training data at once. New data arrives step by step, and a model that
+is updated on new data usually forgets what it has learned before. This
+problem is called catastrophic forgetting. The goal of this project is to
+investigate whether a Mixture of Experts model, in which a small gating
+network routes every input to a few specialised sub networks, forgets less
+than a normal neural network when tasks are learned one after another.
+
+For this purpose, a complete experimental framework was implemented in
+Python and PyTorch. Two standard benchmarks were built from the MNIST data
+set: SplitMNIST with five two class tasks and PermutedMNIST with five
+random pixel permutations. A naive multi layer perceptron, the same network
+with Elastic Weight Consolidation, a wider network with more parameters,
+and the proposed Mixture of Experts model were trained sequentially and
+compared with the metrics average accuracy, average forgetting and backward
+transfer. Every experiment was repeated with three random seeds.
+
+The results show that the Mixture of Experts model forgets clearly less
+than the naive baseline on SplitMNIST. On PermutedMNIST, the first version
+of the model performed worse than expected. A detailed analysis showed two
+reasons: the load balancing loss forces all tasks to share all experts, and
+more importantly, the task specific information of PermutedMNIST is stored
+in the shared input layer, which the router cannot protect. A second
+architecture with routing directly at the input solves this problem and
+reaches the best knowledge retention of all compared approaches on both
+benchmarks. An analysis of the gating network confirms that different tasks
+are routed to different experts, which explains the reduced forgetting.

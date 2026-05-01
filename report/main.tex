@@ -1,0 +1,198 @@
+% ===========================================================================
+% Project Report
+% Hochschule Aalen, M.Sc. Machine Learning and Data Analytics
+% Format follows the official report template (TestDokument_EN).
+% ===========================================================================
+\documentclass[12pt,a4paper,oneside]{report}
+
+\usepackage[english]{babel}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{float}
+\usepackage{setspace}
+\usepackage{microtype}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{listings}
+\usepackage{acronym}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,shapes.geometric}
+\usepackage[backend=bibtex,style=numeric-comp,sorting=none]{biblatex}
+\addbibresource{references.bib}
+\usepackage{ragged2e}
+\appto{\bibsetup}{\RaggedRight}
+
+% page geometry
+\geometry{a4paper, top=2.5cm, bottom=2.5cm, left=3.0cm, right=2.5cm}
+\onehalfspacing
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+\emergencystretch=3em
+
+% header and footer
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\sffamily\nouppercase{\leftmark}}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% chapter and section headings (template look: "1. Title")
+\titleformat{\chapter}[hang]
+  {\normalfont\LARGE\sffamily\bfseries}{\thechapter.}{0.6em}{\LARGE}
+\titlespacing*{\chapter}{0pt}{-18pt}{18pt}
+\titleformat{\section}[hang]
+  {\normalfont\Large\sffamily\bfseries}{\thesection.}{0.6em}{}
+\titleformat{\subsection}[hang]
+  {\normalfont\large\sffamily\bfseries}{\thesubsection.}{0.6em}{}
+
+% figure and table numbers (template look: "Figure 1.1.:")
+\renewcommand{\thefigure}{\thechapter.\arabic{figure}.}
+\renewcommand{\thetable}{\thechapter.\arabic{table}.}
+\captionsetup{labelfont={sf,bf}, labelsep=colon}
+
+% code listings
+\definecolor{codegray}{gray}{0.95}
+\definecolor{codeblue}{RGB}{0,60,140}
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  backgroundcolor=\color{codegray},
+  keywordstyle=\color{codeblue}\bfseries,
+  commentstyle=\color{gray}\itshape,
+  stringstyle=\color{orange!60!black},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  numbersep=8pt,
+  frame=single,
+  framerule=0.2pt,
+  rulecolor=\color{gray!40},
+  breaklines=true,
+  showstringspaces=false,
+  captionpos=b,
+  language=Python
+}
+
+% title page
+\newcommand{\maketitlepage}{%
+\begin{titlepage}
+  \begin{center}
+    {\Large\sffamily\bfseries Hochschule Aalen}\\[2pt]
+    {\normalsize\sffamily Technology and Economy}\\[30pt]
+    {\large\sffamily Project Report}\\[8pt]
+    {\sffamily Course of Studies: Machine Learning and Data Analytics}\\[30pt]
+    {\huge\sffamily\bfseries Using Mixture of Experts (MoE) to Learn New
+     Data Without Losing Old Knowledge\par}\vspace{30pt}
+    {\large\sffamily by}\\[8pt]
+    {\Large\sffamily Gajera Yash Hasmukhbhai}\\[6pt]
+    {\large\sffamily 3015550}\\[30pt]
+    \begin{tabular}{ll}
+      \sffamily Supervising Professor: & \sffamily Prof.~Dr.~[First Examiner] \\
+      \sffamily Submission Date: & \sffamily 15. August 2026 \\
+    \end{tabular}
+  \end{center}
+  \vfill
+\end{titlepage}}
+
+% statutory declaration
+\newcommand{\makeaffirmation}{%
+\chapter*{Statutory Declaration}
+\thispagestyle{empty}
+\addcontentsline{toc}{chapter}{Statutory Declaration}
+I, Gajera Yash Hasmukhbhai, hereby declare that I have written the present
+work truthfully and independently by myself. Furthermore, I assure that I
+have used no other than the specified sources and aids, that I have marked
+all quotations that I have used from other sources, and that the work in
+the same or similar form was not yet part of a study or examination.
+
+As aids, the programming language Python with the libraries PyTorch,
+torchvision, NumPy and Matplotlib were used for the implementation and the
+experiments, as well as an AI based assistant for support in wording and
+code drafting. All generated content was checked, tested and evaluated by
+me, and I take full responsibility for the content of this work.\\[30pt]
+Aalen, 15. August 2026\\[48pt]
+\rule{6cm}{0.4pt}\\
+\sffamily Signature (Student)
+\cleardoublepage}
+
+% abstract environment
+\newenvironment{abstractpage}
+  {\chapter*{Abstract}\addcontentsline{toc}{chapter}{Abstract}}
+  {\cleardoublepage}
+
+% list of abbreviations heading
+\newcommand{\listofabbreviations}{%
+  \chapter*{List of Abbreviations}%
+  \addcontentsline{toc}{chapter}{List of Abbreviations}}
+
+% hyperref last
+\usepackage[
+    colorlinks=true,
+    linkcolor=blue,
+    citecolor=darkgray,
+    urlcolor=blue,
+    bookmarks=true,
+    bookmarksnumbered=true,
+    unicode=true
+]{hyperref}
+\hypersetup{
+    pdftitle={Using Mixture of Experts to Learn New Data Without Losing Old Knowledge},
+    pdfauthor={Gajera Yash Hasmukhbhai},
+    pdfsubject={Project Report, Continual Learning with Mixture of Experts},
+    pdfkeywords={continual learning, catastrophic forgetting, mixture of experts}
+}
+
+\begin{document}
+
+% front matter, lowercase roman page numbers
+\pagenumbering{Alph}
+\maketitlepage
+\clearpage
+\pagenumbering{roman}
+\makeaffirmation
+
+\begin{abstractpage}
+\input{chapters/00_abstract}
+\end{abstractpage}
+
+\tableofcontents
+\cleardoublepage
+\listoffigures
+\cleardoublepage
+\listoftables
+\cleardoublepage
+\lstlistoflistings
+\cleardoublepage
+\listofabbreviations
+\input{chapters/00_acronyms}
+\cleardoublepage
+
+% main matter
+\pagenumbering{arabic}
+\input{chapters/01_introduction}
+\input{chapters/02_fundamentals}
+\input{chapters/03_analysis}
+\input{chapters/04_concept}
+\input{chapters/05_implementation}
+\input{chapters/06_commissioning}
+\input{chapters/07_evaluation}
+\input{chapters/08_summary}
+
+% bibliography
+\printbibliography[heading=bibintoc,title={Bibliography}]
+
+% appendix
+\appendix
+\input{chapters/appendix}
+
+\end{document}
