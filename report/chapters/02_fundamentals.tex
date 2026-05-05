@@ -1,0 +1,309 @@
+\chapter{Fundamentals}
+\label{chap:fundamentals}
+
+This chapter presents the theoretical knowledge that is needed for the
+solution of the problem. Only contents that are used later in the report
+are included. Section~2.1 revisits feed forward neural networks and their
+training. Section~2.2 formalises continual learning and its standard
+scenarios. Section~2.3 explains catastrophic forgetting in more detail, and
+Section~2.4 defines the metrics that are used to measure it. Section~2.5
+introduces the Mixture of Experts architecture and its gating mechanism.
+
+\section{Feed Forward Neural Networks}
+\label{sec:fnn}
+
+An artificial neural network is a parametric function
+$f_{\theta} : \mathbb{R}^{d} \rightarrow \mathbb{R}^{c}$ that is built from
+layers of simple computational units. A fully connected layer computes
+\begin{equation}
+  h^{(l)} = \phi\!\left(W^{(l)} h^{(l-1)} + b^{(l)}\right),
+  \label{eq:layer}
+\end{equation}
+where $h^{(l-1)} \in \mathbb{R}^{d_{l-1}}$ is the input of the layer,
+$W^{(l)} \in \mathbb{R}^{d_l \times d_{l-1}}$ is the weight matrix,
+$b^{(l)} \in \mathbb{R}^{d_l}$ is the bias vector, and $\phi$ is a non
+linear activation function. Stacking several such layers gives a multi
+layer perceptron (MLP). In this project, the rectified linear unit
+$\phi(z) = \max(0, z)$, short ReLU, is used for the hidden layers, because
+it is simple, fast and reduces the vanishing gradient problem
+\cite{goodfellow2016}.
+
+For a classification problem with $c$ classes, the last layer produces a
+vector of logits $z \in \mathbb{R}^{c}$, which is converted into a
+probability distribution by the softmax function,
+\begin{equation}
+  p(y = i \mid x) = \frac{\exp(z_i)}{\sum_{j=1}^{c} \exp(z_j)}.
+  \label{eq:softmax}
+\end{equation}
+The network is trained by minimising the cross entropy loss
+\begin{equation}
+  \mathcal{L}_{\mathrm{CE}}(\theta)
+    = -\frac{1}{N} \sum_{n=1}^{N} \log p(y_n \mid x_n; \theta)
+  \label{eq:ce}
+\end{equation}
+over a training set $\{(x_n, y_n)\}_{n=1}^{N}$ with mini batch stochastic
+gradient descent or one of its adaptive variants. In this project, the Adam
+optimiser \cite{kingma2015} is used. Adam keeps an estimate of the first
+and the second moment of the gradient for every parameter and adapts the
+effective step size accordingly, which makes the training robust against a
+suboptimal choice of the learning rate.
+
+An important property of such networks for this project is that the
+knowledge of the network is stored in a distributed way. Every weight
+takes part in the computation of every output, and every output depends on
+many weights. This property is one of the main reasons for the forgetting
+problem that is described in Section~2.3.
+
+\section{Continual Learning}
+\label{sec:cl}
+
+\subsection{Problem Definition}
+
+In continual learning, the training data is not available as one static
+data set but arrives as a sequence of $T$ tasks
+$\mathcal{T}_1, \mathcal{T}_2, \dots, \mathcal{T}_T$. Each task
+$\mathcal{T}_t$ consists of a data set
+$\mathcal{D}_t = \{(x_i^{(t)}, y_i^{(t)})\}_{i=1}^{N_t}$
+from a task specific distribution. At time $t$, the learner has only access
+to $\mathcal{D}_t$, or at most to a very limited memory of earlier tasks,
+and has to update its parameters from $\theta_{t-1}$ to $\theta_t$. The
+goal is to perform well on all tasks seen so far, not only on the current
+one.
+
+This setting is fundamentally different from multi task learning, where the
+data of all tasks is available at the same time and can be mixed freely,
+and also from transfer learning, where only the performance on a new target
+task matters and the performance on the source task is allowed to degrade.
+
+\subsection{The Three Continual Learning Scenarios}
+\label{sec:scenarios}
+
+Van de Ven and Tolias \cite{vandeven2019} distinguish three scenarios of
+increasing difficulty, which differ in the information that is available at
+test time:
+
+\begin{description}[style=nextline]
+  \item[Task incremental learning.] The task identity is known at test
+        time. The model may use task specific components, for example a
+        separate output head per task, and it only has to solve the sub
+        problem of the current task. SplitMNIST with one output head per
+        task belongs to this scenario.
+  \item[Domain incremental learning.] The task identity is not needed at
+        test time, but all tasks share the same output space. The model
+        must solve every task without knowing which task an input belongs
+        to, but it never has to distinguish classes of different tasks.
+        PermutedMNIST with one shared ten class head is the standard
+        example.
+  \item[Class incremental learning.] The model additionally has to infer
+        the task identity itself, that is, it has to distinguish all
+        classes of all tasks at the same time. This is the hardest of the
+        three scenarios.
+\end{description}
+
+The two benchmarks of this project cover the first two scenarios. This is a
+deliberate choice, as explained in Section~1.2: the main goal is to study
+the stability plasticity behaviour of the Mixture of Experts architecture
+in a clean setting, not to solve the harder class incremental problem,
+which usually needs additional memory based techniques.
+
+\subsection{The Stability Plasticity Dilemma}
+\label{sec:dilemma}
+
+Every continual learning method has to balance plasticity, the ability to
+gain new knowledge, against stability, the ability to keep old knowledge
+\cite{mermillod2013}. Regularisation based methods implement this trade off
+explicitly with an additional stability term in the loss function.
+Architectural methods implement it implicitly by assigning different parts
+of the network to different tasks. The Mixture of Experts approach
+investigated here realises the trade off through routing: the plasticity is
+concentrated in the experts that the router selects for the new task, while
+the remaining experts act as stable memory.
+
+\section{Catastrophic Forgetting}
+\label{sec:forgetting}
+
+Catastrophic forgetting denotes the fast and severe loss of previously
+learned performance when a neural network is trained on new information.
+The phenomenon was documented systematically by McCloskey and Cohen
+\cite{mccloskey1989}, who showed that networks trained sequentially on two
+lists of associations perform almost at chance level on the first list
+after learning the second one. French \cite{french1999} related the effect
+to the distributed representations of connectionist models: because all
+weights take part in the storage of every pattern, writing a new pattern
+into the network inevitably overwrites parts of the old ones.
+
+From the optimisation point of view, the reason is simple. During the
+training on task $\mathcal{T}_t$, gradient descent follows the loss
+landscape of $\mathcal{L}_t$ only. Nothing in the objective prevents the
+parameters from moving to a region of the weight space that is good for
+$\mathcal{T}_t$ but arbitrarily bad for the earlier tasks. Because the loss
+surfaces of different tasks usually do not share a common minimum in a high
+dimensional weight space, sequential optimisation almost guarantees
+interference \cite{goodfellow2013}.
+
+It is important to note that catastrophic forgetting is not caused by a
+lack of capacity. Even networks with far more parameters than needed for
+each single task forget, because the same parameters are reused for all
+tasks. This observation is the key motivation for the present project: a
+Mixture of Experts model can partition its capacity so that different tasks
+rely on different parameters, and can therefore attack the root cause of
+the interference instead of only dampening its symptoms.
+
+\section{Metrics for Continual Learning}
+\label{sec:clmetrics}
+
+To make forgetting measurable, the evaluation follows the standard protocol
+of Lopez-Paz and Ranzato \cite{lopezpaz2017}. Let
+\begin{equation}
+  R_{i,j} \in [0,1]
+\end{equation}
+be the test accuracy on task $\mathcal{T}_j$ after the model has been
+trained on task $\mathcal{T}_i$, with $j \leq i$. The triangular matrix $R$
+describes the complete learning dynamic of a run. Three scalar metrics are
+derived from it.
+
+The average accuracy is the mean performance over all tasks after the last
+training stage,
+\begin{equation}
+  A = \frac{1}{T} \sum_{j=1}^{T} R_{T,j}.
+  \label{eq:avgacc}
+\end{equation}
+It reflects plasticity and stability together and is the primary metric of
+a continual learner.
+
+The average forgetting measures, for every task, the difference between the
+best accuracy ever reached on it and its accuracy at the end of training:
+\begin{equation}
+  F = \frac{1}{T-1} \sum_{j=1}^{T-1}
+      \Big( \max_{i \in \{j, \dots, T-1\}} R_{i,j} - R_{T,j} \Big).
+  \label{eq:forgetting}
+\end{equation}
+A value of $F = 0$ means perfect retention; larger positive values mean
+more severe forgetting.
+
+The backward transfer (BWT) measures the average influence that learning a
+new task has on the performance on previous tasks,
+\begin{equation}
+  \mathrm{BWT} = \frac{1}{T-1} \sum_{j=1}^{T-1} \left( R_{T,j} - R_{j,j} \right).
+  \label{eq:bwt}
+\end{equation}
+Negative values indicate forgetting; positive values would mean that
+learning later tasks even improved the earlier ones.
+
+\section{Mixture of Experts}
+\label{sec:moe}
+
+\subsection{Historical Roots}
+
+The Mixture of Experts idea goes back to Jacobs, Jordan, Nowlan and
+Hinton \cite{jacobs1991}, who proposed to replace one single network by a
+set of expert networks together with a gating network. Each expert
+specialises on a region of the input space, and the gating network learns
+to assign every input to the most suitable expert. Because the experts are
+trained jointly but compete through the gate, the architecture shows a
+form of divide and conquer: a complex problem is decomposed into simpler
+sub problems that are solved by specialists. Hierarchical variants of the
+model were analysed afterwards by Jordan and Jacobs \cite{jordan1994}.
+
+\subsection{Sparsely Gated Mixture of Experts}
+\label{sec:sparsemoe}
+
+The modern, scalable form of the idea is the sparsely gated MoE layer of
+Shazeer et al.\ \cite{shazeer2017}. Instead of weighting all experts, the
+gate activates only the $k$ best ones, typically $k \in \{1, 2\}$, which
+keeps the computational cost per input almost constant while the total
+number of parameters grows with the number of experts. This architecture
+later became a core component of very large language models, most notably
+the Switch Transformer \cite{fedus2022}, and showed that expert based
+capacity scaling works reliably in practice.
+
+Formally, an MoE layer consists of $E$ expert networks $f_1, \dots, f_E$
+and a gating network $g$. For an input $h$, the gate first computes logits
+and converts them into a probability distribution over the experts:
+\begin{equation}
+  g(h) = \mathrm{softmax}\!\left(W_g h + b_g\right) \in \mathbb{R}^{E}.
+  \label{eq:gate}
+\end{equation}
+Only the $k$ experts with the largest gate values are evaluated. If
+$\mathcal{S}(h) = \operatorname{top}\text{-}k\big(g(h)\big)$ denotes the
+index set of the selected experts and $\tilde{g}_e$ their renormalised gate
+values, the output of the layer is the convex combination
+\begin{equation}
+  \mathrm{MoE}(h) = \sum_{e \in \mathcal{S}(h)} \tilde{g}_e(h) \, f_e(h),
+  \qquad
+  \tilde{g}_e(h) = \frac{g_e(h)}{\sum_{e' \in \mathcal{S}(h)} g_{e'}(h)}.
+  \label{eq:moe}
+\end{equation}
+All parameters, those of the experts and those of the gate, are trained
+jointly by backpropagation; the gate receives gradients through the weights
+$\tilde{g}_e$.
+
+\subsection{Load Balancing}
+\label{sec:loadbalance}
+
+A well known failure mode of MoE training is expert collapse: the gate
+quickly prefers one or two experts, these experts receive more gradient
+signal and become even better, and the remaining experts starve. To prevent
+this, an auxiliary loss is used that rewards a uniform usage of the experts
+\cite{shazeer2017}. The variant used in this project follows the Switch
+Transformer \cite{fedus2022}. Let $f_e$ be the fraction of samples of a
+batch whose highest ranked expert is $e$, and let $P_e$ be the mean gate
+probability of expert $e$ over the batch. Then
+\begin{equation}
+  \mathcal{L}_{\mathrm{LB}} = E \cdot \sum_{e=1}^{E} f_e \, P_e
+  \label{eq:lb}
+\end{equation}
+is minimised when all experts are used equally. It is added to the task
+loss with a small coefficient $\alpha$:
+\begin{equation}
+  \mathcal{L} = \mathcal{L}_{\mathrm{CE}} + \alpha \, \mathcal{L}_{\mathrm{LB}}.
+  \label{eq:totalloss}
+\end{equation}
+As Chapter~7 will show, this auxiliary loss has an unexpected and important
+side effect in the continual setting.
+
+\subsection{Position of the MoE Layer in the Network}
+\label{sec:moeposition}
+
+A design question that is rarely discussed in the MoE literature, but is
+central for this project, is where in the network the MoE layer should be
+placed. In large language models, the MoE layers replace the feed forward
+blocks in the middle of a deep stack, so the router always sees a hidden
+representation that was produced by shared layers in front of it. Two
+extreme positions can be distinguished.
+
+With \emph{hidden level routing}, the input first passes one or more shared
+layers, and the router assigns the resulting hidden representation to the
+experts. The shared layers form a common feature extractor for all inputs,
+and the experts only specialise on the later processing stages. With
+\emph{input level routing}, the router and the experts act directly on the
+raw input, and only the mixed expert output passes shared layers.
+
+The difference matters for continual learning, because routing can only
+protect the parameters that lie behind the router. Parameters in front of
+the router process every input of every task and are updated by every
+task, so they behave exactly like the weights of a dense network. If two
+tasks differ in the way the raw input must be interpreted, as for example
+two different pixel permutations do, the decisive task specific knowledge
+lives precisely in this early mapping. A router behind a shared trunk
+cannot protect this mapping, no matter how well it separates the tasks in
+the hidden space. This consideration is taken up again in the design
+decisions of Chapter~4 and becomes directly relevant in the evaluation in
+Chapter~7.
+
+\subsection{Why MoE Is Attractive for Continual Learning}
+\label{sec:whymoe}
+
+The connection between MoE and continual learning is the central idea of
+this project. Three properties make the architecture promising. First,
+conditional computation: only a subset of the network is active for any
+given input, so if the router separates tasks, the gradient updates on a
+new task touch only a subset of the parameters, which directly limits
+interference. Second, spare capacity: the total number of parameters scales
+with the number of experts, not with the cost per input, so new tasks can
+occupy capacity that was not needed by earlier tasks. Third, learned task
+inference: the gate itself is a small classifier that learns, without being
+told the task identity, to distinguish the input distributions of the
+tasks. Whether these properties actually appear in a sequential training
+regime, and how strongly they protect against forgetting, is exactly what
+the experiments in Chapter~7 are designed to measure.

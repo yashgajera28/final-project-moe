@@ -1,0 +1,176 @@
+\chapter{Introduction}
+\label{chap:introduction}
+
+The introduction should awaken the reader's interest in the contents of
+this report, point out the treated problems, and describe the concepts that
+were developed for their solution. For this purpose, this chapter first
+explains the motivation of the project in Section~1.1, then defines and
+delimits the problem in Section~1.2, fixes the objective of the work in
+Section~1.3, and finally presents the chosen approach in Section~1.4.
+
+\section{Motivation}
+\label{sec:motivation}
+
+In classical machine learning, it is assumed that the complete training
+data set is available from the beginning and that all samples are
+independent and identically distributed. Under this assumption, modern deep
+neural networks achieve impressive results in image classification, speech
+recognition and many other areas. In realistic applications, however, this
+assumption is often not fulfilled. Data arrives step by step: a medical
+diagnosis system sees new diseases, a recommendation system sees new user
+groups, and a self driving car sees new traffic situations, weather
+conditions or regions. In all these cases, the model has to be updated
+continuously, ideally without storing and reprocessing all historical data
+again.
+
+A simple update strategy, namely to continue the training of the network on
+the new data, fails in a drastic and well documented way. The network
+adapts its weights to the new task and thereby overwrites exactly those
+weight configurations that stored the solution of the earlier tasks. After
+only a few update steps, the performance on the old data breaks down,
+although the architecture and the capacity of the network have not changed.
+This phenomenon is known as catastrophic forgetting or catastrophic
+interference and has been studied in neural networks since the late 1980s
+\cite{mccloskey1989,french1999}. It is still seen as one of the central
+obstacles on the way to adaptive, lifelong learning systems
+\cite{delange2021,wang2024survey}.
+
+The research field of continual learning, also called lifelong or
+incremental learning, develops methods against this problem. Roughly
+speaking, three families of approaches exist. Regularisation based methods
+such as Elastic Weight Consolidation \cite{kirkpatrick2017} punish changes
+to weights that were important for earlier tasks. Replay based methods
+store a small memory of old data and mix it into the training of new tasks
+\cite{rebuffi2017,lopezpaz2017}. Architecture based methods change the
+structure of the network itself so that new knowledge can be stored in
+previously unused components \cite{rusu2016}. The present project belongs
+to the third family.
+
+The starting point of this work is the Mixture of Experts architecture.
+Instead of one single large network, such a model consists of several
+smaller sub networks, the so called experts, and a learned gating network,
+also called router, that decides for every input which experts should
+process it \cite{jacobs1991,shazeer2017}. The central hypothesis of this
+project is that this structure is naturally suited for continual learning:
+if the router learns to send the data of a new task to a different subset
+of experts than the data of earlier tasks, then the gradient updates for
+the new task mainly change those experts, and the knowledge stored in the
+remaining experts stays mostly untouched. In other words, the model can
+continue learning without overwriting, because the capacity of the model is
+partitioned instead of being shared completely.
+
+For me as a student, this topic is attractive because it connects two
+important and modern topics of machine learning in a very practical way. On
+the one hand, continual learning is a requirement for almost every machine
+learning system that is used over a long time. On the other hand, Mixture
+of Experts models are currently one of the most important building blocks
+of very large language models \cite{fedus2022}, and it is an interesting
+question whether their routing mechanism has useful properties beyond pure
+scaling.
+
+\section{Problem Statement and Delimitation}
+\label{sec:problem}
+
+A normal deep neural network works well when all training data is presented
+at the same time. When the data arrives one task after another, the network
+loses its old abilities quickly. The concrete problem of this project is
+therefore to build and evaluate a system that fulfils three requirements at
+the same time. First, plasticity: the system must be able to learn a new
+task fast and with high accuracy, using only the data of the current task.
+Second, stability: after a sequence of tasks, the system must still reach a
+high accuracy on the earlier tasks, without being trained on their data
+again. Third, efficiency: the additional computational cost and the
+additional memory compared to a normal network must stay moderate.
+
+These three requirements are in conflict with each other, which is known as
+the stability plasticity dilemma \cite{mermillod2013}. A completely stable
+model cannot learn anything new, and a completely plastic model forgets
+everything old. The problem of this project is to find out whether a
+Mixture of Experts architecture can offer a better compromise than a
+monolithic network.
+
+To keep the problem tractable, the project is delimited in the following
+way. The investigation is restricted to two established benchmarks that are
+built from the MNIST data set \cite{lecun1998}: SplitMNIST for the task
+incremental scenario and PermutedMNIST for the domain incremental scenario
+\cite{vandeven2019}. The harder class incremental scenario, in which the
+model also has to infer the task identity of a test sample, is not part of
+this work. The investigated networks are feed forward networks of moderate
+size; convolutional architectures and larger image data sets are excluded.
+Replay methods, which store old data, are deliberately not used, because
+the goal is to find out how far a purely architectural mechanism can go
+without any stored data. Extensions in these directions are discussed as
+outlook in Chapter~8.
+
+\section{Objective of the Work}
+\label{sec:objective}
+
+The objective of this work is to build and test a Mixture of Experts model
+for continual learning and to find out whether it forgets less than a
+normal neural network. Following the project proposal, this objective is
+split into five concrete goals:
+
+\begin{enumerate}[label=\textbf{G\arabic*.}, leftmargin=3em]
+  \item Study why normal neural networks forget old data so quickly, and
+        summarise the theoretical background of continual learning and
+        Mixture of Experts models.
+  \item Design and implement a Mixture of Experts model with a trainable
+        router that can be trained step by step on a sequence of tasks.
+  \item Train this model on two different benchmarks that present the data
+        one task after another.
+  \item Compare the model with simple neural networks and with an
+        established regularisation method to show how much it forgets in
+        comparison.
+  \item Examine how the router works and how its behaviour contributes to
+        keeping previously learned knowledge.
+\end{enumerate}
+
+The work is considered successful if all five goals are reached with
+reproducible experiments and if the comparison is based on the standard
+metrics of the field.
+
+\section{Approach}
+\label{sec:approach}
+
+After problem statement and objective have fixed the starting point and the
+end point of the work, this section presents the path that was taken. The
+individual solution steps and their connection are shown in
+Figure~1.1.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  pstep/.style={draw, rounded corners, minimum height=0.95cm, minimum width=2.65cm, align=center, fill=blue!6, font=\small},
+  arr/.style={-{Stealth[length=2.5mm]}, thick}]
+  \node[pstep] (s1) {1. Literature\\review};
+  \node[pstep, right=0.55cm of s1] (s2) {2. Benchmarks\\SplitMNIST,\\PermutedMNIST};
+  \node[pstep, right=0.55cm of s2] (s3) {3. Baselines\\naive, wide,\\EWC};
+  \node[pstep, right=0.55cm of s3] (s4) {4. MoE model\\and router\\variants};
+  \node[pstep, below=0.7cm of s3] (s5) {5. Experiments\\3 seeds, CL\\metrics};
+  \node[pstep, right=0.55cm of s5] (s6) {6. Router\\analysis};
+  \node[pstep, left=0.55cm of s5] (s7) {7. Evaluation\\and report};
+  \draw[arr] (s1) -- (s2);
+  \draw[arr] (s2) -- (s3);
+  \draw[arr] (s3) -- (s4);
+  \draw[arr] (s4.south) |- (s5.east);
+  \draw[arr] (s5) -- (s6);
+  \draw[arr] (s6) -- (s7);
+\end{tikzpicture}
+\caption{Overview of the approach of this project.}
+\label{fig:approach}
+\end{figure}
+
+In the first step, the literature on catastrophic forgetting, continual
+learning and Mixture of Experts models was studied, and the theoretical
+foundation was worked out. This foundation is presented in Chapter~2. In
+the second step, the two benchmarks were constructed and the problem was
+analysed in detail; this analysis and the resulting requirements are
+documented in Chapter~3. In the third and fourth step, the baseline models
+and the Mixture of Experts model with its router were designed, which is
+the content of Chapter~4. The concrete implementation in Python and
+PyTorch is described in Chapter~5. Chapter~6 explains how the implemented
+programs were brought into operation and how the experiment suite was
+executed. Chapter~7 evaluates the results of all experiments, including a
+detailed router analysis and an architecture variant that resulted from the
+findings. Chapter~8 finally summarises the achieved results and gives an
+outlook on possible extensions.
