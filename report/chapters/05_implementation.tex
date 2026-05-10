@@ -1,0 +1,182 @@
+\chapter{Implementation}
+\label{chap:implementation}
+
+This chapter describes the concrete implementation of the solution concept
+from Chapter~4. Section~5.1 lists the used development tools,
+Section~5.2 describes the module structure of the code, and
+Sections~5.3 to~5.5 explain the implementation of the benchmarks, the
+models and the training strategies. Only one short code excerpt is shown;
+the complete source code is printed in Appendix~A.
+
+\section{Development Tools}
+\label{sec:stack}
+
+The system was implemented in Python~3.12. As deep learning framework,
+PyTorch~2.8 \cite{paszke2019} with torchvision for data loading was used.
+NumPy was used for numerical post processing and Matplotlib for the
+visualisation of the results. All experiments ran on the CPU of a standard
+Linux machine; no GPU was necessary, because the models and data sets are
+small. Every module is documented by docstrings and inline comments.
+
+\section{Module Structure}
+\label{sec:implstructure}
+
+The code is organised as a small package with one module per layer of the
+concept in Figure~4.1:
+
+\begin{itemize}[leftmargin=2em]
+  \item \texttt{datasets.py}: construction of the SplitMNIST and
+        PermutedMNIST task sequences (benchmark layer);
+  \item \texttt{models.py}: the baseline MLP, the wide MLP, the MoE network
+        and the input level MoE variant (model layer);
+  \item \texttt{continual.py}: the training strategies naive, EWC and MoE,
+        together with the evaluation metrics (strategy and evaluation
+        layer);
+  \item \texttt{run\_experiments.py}, \texttt{run\_ablation.py} and
+        \texttt{run\_v2.py}: the experiment drivers for the main
+        experiments, the load balancing ablation and the architecture
+        variant;
+  \item \texttt{make\_figures.py} and \texttt{make\_tables.py}: generation
+        of all figures and result tables of this report directly from the
+        stored results.
+\end{itemize}
+
+\section{Benchmark Construction}
+\label{sec:implbench}
+
+\subsection{SplitMNIST}
+
+The ten MNIST classes are split into five consecutive tasks
+$\{0,1\}, \{2,3\}, \dots, \{8,9\}$. For every task, the samples of the two
+classes are extracted from the original training and test sets, the labels
+are remapped to the local classes $\{0,1\}$ of the task specific output
+head, and the images are flattened to vectors of $784$ float values. The
+result is a task incremental benchmark in the multi head protocol of
+Section~2.2.2.
+
+\subsection{PermutedMNIST}
+
+For PermutedMNIST, the first task is the original MNIST data set. For every
+later task, a fixed random permutation of the $784$ pixel positions is
+drawn from a seeded random number generator and applied to all images of
+that task. Because the classes stay the same in every task, all tasks share
+one ten class output head, which realises the domain incremental scenario.
+The permutation is applied on the fly when a sample is loaded, so the base
+tensors are stored only once and the memory usage stays low even for many
+tasks.
+
+\section{Model Implementations}
+\label{sec:implmodels}
+
+The baseline network is a two hidden layer MLP with
+$784 \rightarrow 400 \rightarrow 400$ units and ReLU activations, plus one
+linear output head per task. The wide baseline increases the hidden
+dimension to $1100$, which raises its parameter count slightly above the
+MoE model and thereby implements the capacity control required in
+Section~3.3. Table~5.1 lists the resulting parameter counts.
+
+\begin{table}[H]
+  \centering
+  \caption{Trainable parameters of the compared architectures (with five
+  output heads on SplitMNIST).}
+  \label{tab:params}
+  \begin{tabular}{lr}
+    \toprule
+    \textbf{Architecture} & \textbf{Parameters} \\
+    \midrule
+    Baseline MLP ($784{\rightarrow}400{\rightarrow}400$) & 476{,}004 \\
+    MoE, hidden level routing ($8$ experts, top $2$)     & 1{,}602{,}012 \\
+    MoE, input level routing ($8$ experts, top $2$)      & 1{,}679{,}752 \\
+    Wide MLP ($784{\rightarrow}1100{\rightarrow}1100$)    & 2{,}074{,}600 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+The core of the project is the MoE layer. Listing~5.1 shows its forward
+pass. The router computes a softmax distribution over the eight experts,
+the two largest gate values are renormalised, and only the selected experts
+are evaluated. The outputs are added with their gate values as weights. The
+input level variant, which resulted from the evaluation in Chapter~7, uses
+the same gating mechanics but places the router and the experts directly at
+the raw input instead of behind the shared trunk.
+
+\begin{lstlisting}[caption={Forward pass of the sparsely gated MoE layer
+(excerpt from \texttt{models.py}).}, label={lst:moelayer}]
+def forward(self, x):
+    # compute the gate distribution over all experts
+    logits = self.router(x)
+    gates = F.softmax(logits, dim=-1)
+    topv, topi = gates.topk(self.top_k, dim=-1)
+    topv = topv / topv.sum(dim=-1, keepdim=True)
+
+    # evaluate only the selected experts and mix their outputs
+    out = torch.zeros_like(x)
+    for slot in range(self.top_k):
+        idx = topi[:, slot]
+        w = topv[:, slot].unsqueeze(1)
+        for e in range(self.n_experts):
+            mask = idx == e
+            if mask.any():
+                out[mask] += w[mask] * self.experts[e](x[mask])
+    return out, gates
+\end{lstlisting}
+
+\section{Training Strategies}
+\label{sec:implstrategies}
+
+\subsection{Naive Fine Tuning}
+
+The naive trainer minimises the cross entropy loss of
+Equation~\eqref{eq:ce} with the Adam optimiser, learning rate $10^{-3}$,
+for five epochs per task. It deliberately does nothing to protect old
+knowledge and therefore measures the amount of forgetting that every
+continual learning mechanism has to beat.
+
+\subsection{Elastic Weight Consolidation}
+
+The EWC trainer extends the naive trainer in two places. After finishing a
+task, it estimates the diagonal Fisher information of
+Equation~\eqref{eq:fisher} from the gradients on the training data of that
+task and stores a copy of the current parameters. During every later task,
+the quadratic penalty of Equation~\eqref{eq:ewc} with $\lambda = 500$ is
+added to the loss. The penalty accumulates over tasks, so that all previous
+tasks are protected at the same time. Care had to be taken with the lazily
+created output heads: heads of other tasks do not take part in the current
+computation graph, so their Fisher contribution is skipped.
+
+\subsection{MoE Training}
+
+The MoE trainer minimises the combined loss of
+Equation~\eqref{eq:totalloss} with the same optimiser settings as the other
+strategies. After the complete task sequence has been learned, it extracts
+the router profile: the mean gate probability of every expert, computed
+over the test set of every task. This $5 \times 8$ matrix is the raw
+material for the router analysis in Section~7.6.
+
+\section{Experiment Drivers and Result Storage}
+\label{sec:impldrivers}
+
+Three driver scripts connect the modules to complete experiments. The main
+driver \texttt{run\_experiments.py} trains all four approaches on both
+benchmarks with three seeds each. Before every run, the random seed is set
+explicitly, so that the initialisation of every model and the data order
+are identical across approaches and repeatable across machines. After every
+single run, the accuracy matrix, the derived metrics, the parameter count
+and the runtime are appended to the result file, and the router profile is
+stored as a separate NumPy archive. The results are written to disk after
+every run instead of only at the end, so a crash or an out of memory stop
+cannot destroy the measurements that were already collected. This design
+decision proved its value during commissioning, as Section~6.2 describes.
+
+The second driver \texttt{run\_ablation.py} repeats the MoE training on
+PermutedMNIST with smaller load balancing coefficients, and the third
+driver \texttt{run\_v2.py} evaluates the input level architecture variant
+on both benchmarks. All three drivers share the same trainer and metric
+code, so the results are directly comparable.
+
+A deliberate property of the implementation is that no number in this
+report was copied by hand. The two scripts \texttt{make\_figures.py} and
+\texttt{make\_tables.py} read the stored result files and generate every
+figure of Chapter~7 as a vector graphic and every result table as a LaTeX
+file with the measured values. This closes the gap between the experiment
+and the document and removes a common source of transcription errors.

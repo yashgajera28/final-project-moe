@@ -1,0 +1,204 @@
+\chapter{Solution Concept}
+\label{chap:concept}
+
+On the basis of the problem analysis of Chapter~3 and the theoretical
+knowledge of Chapter~2, this chapter develops the solution concept.
+Section~4.1 gives an overview of the system architecture. Section~4.2
+specifies the Mixture of Experts model, Section~4.3 the router, and
+Section~4.4 the continual training procedure.
+
+\section{Architectural Overview}
+\label{sec:overview}
+
+The system is organised in four loosely coupled layers, which are shown in
+Figure~4.1 together with their data flow.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  box/.style={draw, rounded corners, minimum height=1.05cm, minimum width=2.75cm, align=center, fill=blue!6, font=\small},
+  arr/.style={-{Stealth[length=2.5mm]}, thick}]
+  \node[box] (data) {Benchmark layer\\[1pt] \scriptsize SplitMNIST,\\ \scriptsize PermutedMNIST};
+  \node[box, right=0.6cm of data] (model) {Model layer\\[1pt] \scriptsize MLP, Wide MLP, MoE};
+  \node[box, right=0.6cm of model] (train) {Strategy layer\\[1pt] \scriptsize Naive, EWC, MoE};
+  \node[box, right=0.6cm of train] (eval) {Evaluation layer\\[1pt] \scriptsize $R$ matrix, metrics};
+  \draw[arr] (data) -- (model);
+  \draw[arr] (model) -- (train);
+  \draw[arr] (train) -- (eval);
+\end{tikzpicture}
+\caption{Layered concept of the experimental system. The data flows from
+the benchmark layer through the model and strategy layers to the evaluation
+layer, which produces the accuracy matrix, the scalar metrics and the
+router profiles.}
+\label{fig:system}
+\end{figure}
+
+The benchmark layer turns a static data set into a sequence of tasks and
+provides one training and one test data loader per task. The model layer
+contains the network architectures: the baseline MLP, the wide MLP and the
+Mixture of Experts network. The strategy layer implements the training
+procedures, namely naive fine tuning, EWC and the MoE training with the
+auxiliary loss. Finally, the evaluation layer computes the accuracy matrix
+$R$ after every training stage, derives the scalar metrics from it and
+extracts the router profiles for the MoE model.
+
+This separation had two practical advantages during the project. First,
+every component could be implemented and tested independently. Second, the
+comparison between the approaches stays fair, because all approaches
+consume exactly the same task sequence and are evaluated by exactly the
+same code. This directly answers the fairness sub problem SP4 of
+Section~3.1.
+
+\section{Concept of the MoE Model}
+\label{sec:moedesign}
+
+The proposed model follows the structure sketched in Figure~4.2. A shared
+trunk maps the flattened $28 \times 28$ input image to a $400$ dimensional
+representation. This representation is processed by one MoE layer
+consisting of $E = 8$ experts and a router. Each expert is a small feed
+forward block with one hidden layer and ReLU activation, with identical
+input and output dimension, so that the expert outputs can be combined by a
+weighted sum. The router selects the $k = 2$ experts with the highest gate
+values for every sample and combines their outputs according to
+Equation~\eqref{eq:moe}. On top of the MoE layer, one linear output head
+per task produces the class logits (multi head protocol, see
+Section~2.2.2).
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  x=1cm, y=1cm,
+  io/.style={draw, minimum width=1.15cm, minimum height=1.7cm, fill=gray!10, align=center},
+  exp/.style={draw, minimum width=0.75cm, minimum height=1.25cm, fill=blue!12},
+  expa/.style={draw, minimum width=0.75cm, minimum height=1.25cm, fill=orange!30},
+  router/.style={draw, trapezium, trapezium angle=70, minimum width=1.9cm, fill=green!15, align=center},
+  sum/.style={draw, circle, inner sep=1.5pt, fill=red!15},
+  arr/.style={-{Stealth[length=2.2mm]}}]
+  \node[io] (in) at (0,0) {input\\ $784$};
+  \node[io, fill=gray!20] (trunk) at (2.2,0) {trunk\\ $784{\rightarrow}400$};
+  \node[router] (gate) at (4.6,1.9) {\footnotesize router};
+  \node[exp]  (e1) at (4.6,0.9) {};
+  \node[expa] (e2) at (4.6,0.15) {};
+  \node at (4.6,-0.5) {\footnotesize $\vdots$};
+  \node[expa] (e8) at (4.6,-1.1) {};
+  \node at (5.6,0) {\footnotesize $E=8$ experts};
+  \node[sum] (plus) at (7.1,0) {$\sum$};
+  \node[io, fill=gray!20] (head) at (9.2,0) {task head\\ $400{\rightarrow}c$};
+  \node[io] (out) at (11.2,0) {logits};
+  \draw[arr] (in) -- (trunk);
+  \draw[arr] (trunk) -- (gate);
+  \draw[arr] (trunk) -- (4.0,0) -- (e1);
+  \draw[arr] (4.0,0) -- (e2);
+  \draw[arr] (4.0,0) -- (e8);
+  \draw[arr,dashed] (gate) -- (e1);
+  \draw[arr,dashed] (gate) -- (e2);
+  \draw[arr,dashed] (gate) -- (e8);
+  \draw[arr] (e1) -- (plus);
+  \draw[arr] (e2) -- (plus);
+  \draw[arr] (e8) -- (plus);
+  \draw[arr] (plus) -- (head);
+  \draw[arr] (head) -- (out);
+\end{tikzpicture}
+\caption{Concept of the MoE model. A shared trunk feeds eight parallel
+experts. The router (dashed arrows) selects the top 2 experts per sample
+(highlighted); their outputs are combined as a gate weighted sum and passed
+to the output head of the current task.}
+\label{fig:moearch}
+\end{figure}
+
+The choice $E = 8$ with $k = 2$ follows the efficiency requirement of
+Section~1.2: with five tasks, eight experts give enough spare capacity for
+the router to separate the tasks, while the activated computation per
+sample, namely two experts, stays close to that of the baseline. The output
+head per task keeps the comparison with the baselines protocol fair,
+because the baselines use identical heads.
+
+\section{Concept of the Router}
+\label{sec:routerdesign}
+
+The router is a single linear layer $W_g \in \mathbb{R}^{8 \times 400}$
+followed by a softmax, see Equation~\eqref{eq:gate}. It is deliberately
+kept simple: a small gate cannot itself become a bottleneck of forgetting,
+and its decisions stay easy to interpret and to visualise. Two design
+decisions are essential for the continual setting:
+
+\begin{enumerate}[label=\textbf{D\arabic*.}, leftmargin=3em]
+  \item The router does not receive the task identity. The gate only sees
+        the hidden representation of the input. Every task separation it
+        shows is therefore learned from the data alone, which makes the
+        router analysis in Chapter~7 meaningful.
+  \item The router is trained only on the current task, without any
+        mechanism that forces it to keep old routing decisions. If the
+        gate changed its assignments freely, previously acquired expert
+        knowledge would be re-routed and lost. The experiments test whether
+        the assignments stay stable enough in practice.
+\end{enumerate}
+
+The auxiliary loss for load balancing from Equation~\eqref{eq:lb}, with the
+coefficient $\alpha = 0.01$, prevents expert collapse at the beginning of
+training and guarantees that all eight experts stay functional, so that
+later tasks can actually find unused capacity. As the evaluation will show,
+this component behaves differently than expected in the continual setting,
+which leads to the architecture variant described in Section~7.5.
+
+\paragraph{Considered alternatives.} Two alternative router designs were
+considered and rejected. The first alternative was a nonlinear gate with
+one hidden layer. It was rejected because the gate itself is part of the
+continual learning problem: a larger gate has more parameters that can
+forget, and its decisions are harder to interpret in the router analysis.
+The second alternative was a hard top one routing without any mixing,
+as in the Switch Transformer \cite{fedus2022}. It was rejected for this
+small scale setting because the gradient signal of a single expert per
+sample is noisy, and because a soft mixing of two experts makes the
+transition between tasks smoother when the router changes its assignment.
+The top two choice keeps most of the sparsity but keeps training stable,
+which was confirmed in preliminary tests.
+
+\paragraph{Expected behaviour.} If the concept works as intended, the
+following behaviour should be observable in the experiments. During the
+first task, the router distributes the samples over several experts. When
+the second task arrives, the router should prefer experts that carry little
+knowledge of the first task, so that the gradient updates of the new task
+mainly rewrite unused or weakly used parameters. Over the whole sequence,
+a pattern of task specific expert subsets should emerge, and the pairwise
+routing similarity between tasks should stay low. These predictions are
+checked explicitly in Section~7.6.
+
+\section{Concept of the Training Procedure}
+\label{sec:trainingdesign}
+
+All approaches follow the same sequential protocol, which is shown in
+Table~4.1. For every task, the model is trained from its current state on
+the training data of that task; afterwards, it is evaluated on the test
+data of all tasks seen so far, which produces one row of the accuracy
+matrix $R$. No data of earlier tasks is shown again, and no task boundaries
+are signalled to the router.
+
+\begin{table}[H]
+\centering
+\caption{Sequential continual training protocol used for all approaches.}
+\label{tab:protocol}
+\begin{tabular}{p{0.86\textwidth}}
+\toprule
+\textbf{Algorithm:} Sequential training over a task sequence \\
+\midrule
+\textbf{Input:} task sequence $(\mathcal{T}_1, \dots, \mathcal{T}_T)$;
+model $f_\theta$; strategy specific loss $\mathcal{L}$ \\
+1: \textbf{for} $t = 1$ \textbf{to} $T$ \textbf{do} \\
+2: \quad train $f_\theta$ on $\mathcal{T}_t$ by minimising $\mathcal{L}$ \\
+3: \quad \textbf{for} $j = 1$ \textbf{to} $t$ \textbf{do} \\
+4: \quad \quad $R_{t,j} \leftarrow$ accuracy of $f_\theta$ on the test set of $\mathcal{T}_j$ \\
+5: \quad \textbf{end for} \\
+6: \textbf{end for} \\
+7: derive $A$, $F$ and BWT from $R$ (Equations \eqref{eq:avgacc} to \eqref{eq:bwt}) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+For the EWC strategy, step 2 additionally estimates the diagonal Fisher
+information on the current task after convergence and accumulates the
+quadratic penalty of Equation~\eqref{eq:ewc} for all later tasks. For the
+MoE strategy, step 2 minimises the combined loss of
+Equation~\eqref{eq:totalloss}. The evaluation in lines 3 to 5 is identical
+for all approaches, which guarantees that differences in the metrics can be
+attributed to the models and strategies alone.

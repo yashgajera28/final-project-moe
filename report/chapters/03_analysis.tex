@@ -1,0 +1,204 @@
+\chapter{Problem Analysis}
+\label{chap:analysis}
+
+The analysis of the problem to be solved is the basis of every engineering
+like procedure. In this chapter, the overall problem is decomposed into sub
+problems on the basis of the fundamentals of Chapter~2, the existing
+solution approaches from the literature are analysed, and the requirements
+for the system to be developed are derived.
+
+\section{Decomposition of the Problem}
+\label{sec:decomposition}
+
+The overall problem, learning a sequence of tasks without losing old
+knowledge, can be decomposed into the following sub problems:
+
+\begin{enumerate}[label=\textbf{SP\arabic*.}, leftmargin=3em]
+  \item \textbf{Representation of knowledge.} In which part of the network
+        is the knowledge about a task stored, and how can new knowledge be
+        added without changing the old one?
+  \item \textbf{Assignment of tasks to parameters.} Which parameters should
+        be updated when a new task arrives, and who makes this decision?
+  \item \textbf{Measurement of forgetting.} How can forgetting be measured
+        objectively, so that different solutions can be compared fairly?
+  \item \textbf{Fair comparison.} How can it be guaranteed that an observed
+        improvement comes from the investigated mechanism and not, for
+        example, simply from a larger number of parameters?
+\end{enumerate}
+
+These sub problems depend on each other. The assignment of tasks to
+parameters (SP2) decides directly about the representation of knowledge
+(SP1): if two tasks share all parameters, interference is unavoidable, as
+explained in Section~2.3. The measurement (SP3) is needed before any
+solution can be judged, and the fairness question (SP4) decides which
+baseline models the experiment needs. The design in Chapter~4 answers SP1
+and SP2 with the Mixture of Experts architecture and its router, while the
+experiment protocol in Chapters~6 and~7 answers SP3 and SP4.
+
+\section{Analysis of Existing Solution Approaches}
+\label{sec:existing}
+
+Continual learning has been studied intensively in the last years, and
+several surveys give a systematic overview
+\cite{delange2021,wang2024survey,masana2022}. The existing methods can be
+divided into three families.
+
+\subsection{Regularisation Based Methods}
+
+Regularisation based methods leave the network architecture unchanged and
+modify the loss function instead. The most influential representative is
+Elastic Weight Consolidation (EWC) \cite{kirkpatrick2017}. After finishing
+a task, EWC estimates the importance of every parameter by the diagonal of
+the Fisher information matrix,
+\begin{equation}
+  F_{ii} = \mathbb{E}\!\left[\left(
+    \frac{\partial \log p(y \mid x; \theta)}{\partial \theta_i}
+  \right)^{2}\right],
+  \label{eq:fisher}
+\end{equation}
+and afterwards punishes quadratic deviations of important parameters from
+their stored values $\theta_i^{*}$:
+\begin{equation}
+  \mathcal{L}_{\mathrm{EWC}}(\theta)
+    = \mathcal{L}_{t}(\theta)
+      + \frac{\lambda}{2} \sum_{i} F_{ii}\,(\theta_i - \theta_i^{*})^{2}.
+  \label{eq:ewc}
+\end{equation}
+The coefficient $\lambda$ controls the stability plasticity trade off.
+Related methods estimate the importance differently: Synaptic Intelligence
+accumulates an online importance measure along the optimisation path
+\cite{zenke2017}, and Memory Aware Synapses estimates the importance from
+the sensitivity of the output function \cite{aljundi2018}. A shared
+limitation is that the quadratic penalty is only a local approximation:
+with more and more tasks, the collected constraints can rigidify the
+network and finally prevent it from learning new tasks at all. A second
+branch of regularisation avoids storing old data by distillation, for
+example Learning without Forgetting \cite{li2017}.
+
+\subsection{Replay Based Methods}
+
+Replay methods keep a small episodic memory of real or generated samples
+from earlier tasks and mix them into the training of new tasks. iCaRL
+\cite{rebuffi2017} combines an exemplar memory with a nearest mean
+classifier. Gradient Episodic Memory \cite{lopezpaz2017} uses the memory to
+constrain the gradient updates so that the loss on every remembered task
+cannot increase. Generative replay replaces the stored samples with data
+from a learned generative model \cite{shin2017}. Replay belongs to the
+strongest strategies, but it needs to store data, which can be impossible
+for privacy reasons, and the memory grows with the number of tasks.
+
+\subsection{Architecture Based Methods}
+
+The third family changes the network itself. Progressive Neural Networks
+\cite{rusu2016} allocate a new network column per task and connect it to
+the frozen columns of earlier tasks; forgetting is impossible by
+construction, but the number of parameters grows linearly with the number
+of tasks, and the task identity must be known at test time. Other
+approaches assign a binary mask to every task and train only the unmasked
+weights \cite{mallya2018}. Expert Gate \cite{aljundi2017} is conceptually
+closest to this project: it also uses a network of experts with a gating
+mechanism, but it trains one new expert per task and selects experts by the
+task identity, while the approach here lets the router learn the assignment
+fully automatically without any task labels.
+
+\subsection{Comparison of the Method Families}
+
+Table~3.1 contrasts the three families along the criteria that matter for
+this project. No family dominates the others. Regularisation methods are
+cheap and need neither stored data nor task labels, but their protection is
+only a local approximation of the true loss landscape, and the accumulated
+constraints of many tasks can finally block further learning. Replay
+methods reach the strongest results in most benchmarks, but they store old
+data or a generative model of old data, which can be impossible under
+privacy constraints, and their memory requirement grows with the length of
+the task sequence. Architectural methods avoid both problems, but the
+existing representatives either grow the network with every task or need
+the task identity at test time to select the right component.
+
+\begin{table}[H]
+  \centering
+  \small
+  \caption{Comparison of the three continual learning method families.}
+  \label{tab:families}
+  \begin{tabular}{lccc}
+    \toprule
+    \textbf{Criterion} & \textbf{Regularisation} & \textbf{Replay} & \textbf{Architecture} \\
+    \midrule
+    Stores old data          & no   & yes  & no \\
+    Needs task identity      & no   & no   & often \\
+    Capacity growth per task & none & memory only & often linear \\
+    Protection mechanism     & approximate & strong & structural \\
+    Representative methods   & EWC, SI, MAS & iCaRL, GEM & PNN, Expert Gate \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+For the present project, the decisive criterion is the combination of the
+first three rows: a method that stores no data, needs no task labels and
+does not grow without limit. Only a softly partitioned architecture can
+offer all three properties at the same time. A Mixture of Experts model
+with a learned router is a natural candidate, because its capacity is
+fixed in advance but is used conditionally, so new tasks can occupy experts
+that earlier tasks rarely touch.
+
+\subsection{Conclusion for this Project}
+
+The analysis shows a gap: regularisation methods are efficient but only
+approximate, replay methods are strong but need stored data, and existing
+architectural methods either grow without limit or need the task identity.
+A Mixture of Experts model with a learned router promises a middle way: no
+stored data, no task labels, and a capacity that is partitioned softly
+instead of being fixed by hand. This promise is tested in the present
+project.
+
+\section{Requirements Analysis}
+\label{sec:requirements}
+
+From the problem analysis, the following requirements for the system were
+collected and prioritised in four categories, as it is common practice for
+project work.
+
+\paragraph{Must have requirements.}
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{M1:} Sequential training of a model on a sequence of tasks
+        without access to the data of earlier tasks.
+  \item \textbf{M2:} At least two continual learning benchmarks built from
+        MNIST (SplitMNIST and PermutedMNIST).
+  \item \textbf{M3:} A working Mixture of Experts model with a trainable
+        router and more than two experts.
+  \item \textbf{M4:} A naive baseline with the same training protocol for
+        comparison.
+  \item \textbf{M5:} Quantitative evaluation with the standard metrics
+        average accuracy, average forgetting and backward transfer after
+        every training stage.
+\end{itemize}
+
+\paragraph{Should have requirements.}
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{S1:} A regularisation baseline (EWC) to position the MoE
+        results relative to an established method.
+  \item \textbf{S2:} A capacity matched wide baseline to separate capacity
+        effects from routing effects (answers SP4).
+  \item \textbf{S3:} Reproducibility through fixed random seeds and
+        repeated runs.
+  \item \textbf{S4:} Analysis of the router (expert usage per task).
+\end{itemize}
+
+\paragraph{Could have requirements.}
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{C1:} An auxiliary loss for load balancing that keeps all
+        experts active.
+  \item \textbf{C2:} Configurable hyperparameters (number of experts, top
+        $k$, epochs, learning rate).
+\end{itemize}
+
+\paragraph{Nice to have requirements.}
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{N1:} Extension to further benchmarks or to the class
+        incremental scenario.
+  \item \textbf{N2:} Dynamic addition of new experts per task.
+\end{itemize}
+
+All must have and should have requirements were realised, and C1 and C2
+were realised as well. N1 and N2 remain future work and are discussed in
+Section~8.2.
