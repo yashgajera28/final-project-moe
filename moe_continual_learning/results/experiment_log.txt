@@ -1,0 +1,18 @@
+=== SplitMNIST ===
+[split_mnist] seed=0 Naive MLP: avg_acc=0.8845 forgetting=0.1414 bwt=-0.1414 (18.4s)
+[split_mnist] seed=0 MLP + EWC: avg_acc=0.9605 forgetting=0.0448 bwt=-0.0448 (24.9s)
+[split_mnist] seed=0 Wide MLP (naive): avg_acc=0.9308 forgetting=0.0841 bwt=-0.0841 (65.4s)
+[split_mnist] seed=0 MoE: avg_acc=0.9523 forgetting=0.0561 bwt=-0.0561 (65.9s)
+[split_mnist] seed=1 Naive MLP: avg_acc=0.9517 forgetting=0.0558 bwt=-0.0557 (17.8s)
+[split_mnist] seed=1 MLP + EWC: avg_acc=0.9181 forgetting=0.0984 bwt=-0.0984 (26.0s)
+[split_mnist] seed=1 Wide MLP (naive): avg_acc=0.9241 forgetting=0.0924 bwt=-0.0924 (64.5s)
+[split_mnist] seed=1 MoE: avg_acc=0.9535 forgetting=0.0538 bwt=-0.0538 (66.3s)
+[split_mnist] seed=2 Naive MLP: avg_acc=0.9407 forgetting=0.0697 bwt=-0.0697 (17.8s)
+[split_mnist] seed=2 MLP + EWC: avg_acc=0.9796 forgetting=0.0220 bwt=-0.0220 (25.3s)
+[split_mnist] seed=2 Wide MLP (naive): avg_acc=0.8855 forgetting=0.1406 bwt=-0.1406 (64.0s)
+[split_mnist] seed=2 MoE: avg_acc=0.9066 forgetting=0.1125 bwt=-0.1125 (65.8s)
+=== PermutedMNIST ===
+[permuted_mnist] seed=0 Naive MLP: avg_acc=0.7888 forgetting=0.2358 bwt=-0.2358 (91.3s)
+[permuted_mnist] seed=0 MLP + EWC: avg_acc=0.9321 forgetting=0.0566 bwt=-0.0566 (117.7s)
+[permuted_mnist] seed=0 Wide MLP (naive): avg_acc=0.8882 forgetting=0.1163 bwt=-0.1163 (325.6s)
+[permuted_mnist] seed=0 MoE: avg_acc=0.7126 forgetting=0.3293 bwt=-0.3293 (391.8s)
