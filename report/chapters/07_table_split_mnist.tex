@@ -1,0 +1,16 @@
+\begin{table}[H]
+  \centering
+  \small
+  \caption{Results on SplitMNIST (mean $\pm$ standard deviation over three seeds; best value per column in bold).}
+  \label{tab:results_split_mnist}
+  \begin{tabular}{lccc}
+    \toprule
+    \textbf{Approach} & \textbf{Avg.\ accuracy} $\uparrow$ & \textbf{Avg.\ forgetting} $\downarrow$ & \textbf{BWT} $\uparrow$ \\
+    \midrule
+    Naive MLP & $0.9256 \pm 0.0295$ & $0.0890 \pm 0.0375$ & $-0.0890 \pm 0.0375$ \\
+    MLP + EWC & \textbf{$0.9528 \pm 0.0257$} & \textbf{$0.0551 \pm 0.0320$} & \textbf{$-0.0551 \pm 0.0320$} \\
+    Wide MLP (naive) & $0.9135 \pm 0.0199$ & $0.1057 \pm 0.0249$ & $-0.1057 \pm 0.0249$ \\
+    MoE & $0.9375 \pm 0.0218$ & $0.0741 \pm 0.0271$ & $-0.0741 \pm 0.0271$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}

@@ -1,0 +1,16 @@
+\begin{table}[H]
+  \centering
+  \small
+  \caption{Results on PermutedMNIST (mean $\pm$ standard deviation over three seeds; best value per column in bold).}
+  \label{tab:results_permuted_mnist}
+  \begin{tabular}{lccc}
+    \toprule
+    \textbf{Approach} & \textbf{Avg.\ accuracy} $\uparrow$ & \textbf{Avg.\ forgetting} $\downarrow$ & \textbf{BWT} $\uparrow$ \\
+    \midrule
+    Naive MLP & $0.8036 \pm 0.0121$ & $0.2179 \pm 0.0144$ & $-0.2179 \pm 0.0144$ \\
+    MLP + EWC & \textbf{$0.9318 \pm 0.0141$} & \textbf{$0.0566 \pm 0.0172$} & \textbf{$-0.0566 \pm 0.0172$} \\
+    Wide MLP (naive) & $0.9051 \pm 0.0139$ & $0.0933 \pm 0.0182$ & $-0.0933 \pm 0.0182$ \\
+    MoE & $0.7307 \pm 0.0365$ & $0.3063 \pm 0.0458$ & $-0.3063 \pm 0.0458$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}

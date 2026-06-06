@@ -1,0 +1,21 @@
+\begin{table}[H]
+  \centering
+  \small
+  \caption{Final test accuracy per task after the complete task sequence (mean over three seeds).}
+  \label{tab:pertask}
+  \begin{tabular}{llccccc}
+    \toprule
+    \textbf{Benchmark} & \textbf{Approach} & \textbf{T1} & \textbf{T2} & \textbf{T3} & \textbf{T4} & \textbf{T5} \\
+    \midrule
+    \multirow{4}{*}{SplitMNIST} & Naive MLP & 0.8657 & 0.8015 & 0.9742 & 0.9950 & 0.9918 \\
+    & MLP + EWC & 0.9398 & 0.8516 & 0.9861 & 0.9935 & 0.9928 \\
+    & Wide MLP (naive) & 0.8392 & 0.7671 & 0.9699 & 0.9946 & 0.9965 \\
+    & MoE & 0.9286 & 0.8115 & 0.9692 & 0.9847 & 0.9933 \\
+    \midrule
+    \multirow{4}{*}{PermutedMNIST} & Naive MLP & 0.6235 & 0.6686 & 0.8329 & 0.9143 & 0.9786 \\
+    & MLP + EWC & 0.8803 & 0.8976 & 0.9406 & 0.9639 & 0.9767 \\
+    & Wide MLP (naive) & 0.7714 & 0.8754 & 0.9400 & 0.9581 & 0.9807 \\
+    & MoE & 0.5655 & 0.5250 & 0.7129 & 0.8746 & 0.9757 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
