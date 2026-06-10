@@ -1,0 +1,7 @@
+lb=0.001 seed=0: avg_acc=0.7476 forgetting=0.2872 bwt=-0.2872 (338.3s)
+lb=0.001 seed=1: avg_acc=0.7625 forgetting=0.2684 bwt=-0.2684 (428.4s)
+lb=0.001 seed=2: avg_acc=0.7378 forgetting=0.2998 bwt=-0.2998 (359.1s)
+lb=0.0 seed=0: avg_acc=0.8033 forgetting=0.2170 bwt=-0.2170 (259.0s)
+lb=0.0 seed=1: avg_acc=0.7980 forgetting=0.2240 bwt=-0.2240 (346.9s)
+lb=0.0 seed=2: avg_acc=0.7793 forgetting=0.2468 bwt=-0.2468 (249.8s)
+saved ablation_lb.json
