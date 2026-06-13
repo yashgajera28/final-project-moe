@@ -1,0 +1,3 @@
+[split_mnist] seed=0 input-level MoE: avg_acc=0.9846 forgetting=0.0146 bwt=-0.0146
+[split_mnist] seed=1 input-level MoE: avg_acc=0.9488 forgetting=0.0587 bwt=-0.0587
+[split_mnist] seed=2 input-level MoE: avg_acc=0.9607 forgetting=0.0439 bwt=-0.0439

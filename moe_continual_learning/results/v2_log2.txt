@@ -1,0 +1,7 @@
+[split_mnist] seed=0 input-level MoE: avg_acc=0.9846 forgetting=0.0146 bwt=-0.0146
+[split_mnist] seed=1 input-level MoE: avg_acc=0.9488 forgetting=0.0587 bwt=-0.0587
+[split_mnist] seed=2 input-level MoE: avg_acc=0.9607 forgetting=0.0439 bwt=-0.0439
+[permuted_mnist] seed=0 input-level MoE: avg_acc=0.8278 forgetting=0.1795 bwt=-0.1795
+[permuted_mnist] seed=1 input-level MoE: avg_acc=0.7619 forgetting=0.2616 bwt=-0.2616
+[permuted_mnist] seed=2 input-level MoE: avg_acc=0.7610 forgetting=0.2620 bwt=-0.2620
+saved results_v2.json
