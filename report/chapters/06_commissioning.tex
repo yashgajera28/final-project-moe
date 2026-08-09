@@ -1,0 +1,77 @@
+\chapter{Commissioning}
+\label{chap:commissioning}
+
+The task of this chapter is to show how the implemented solution was
+brought into operation. For this project, this means the preparation of the
+runtime environment, the execution of the experiment suite, and the steps
+taken to make the results reproducible.
+
+\section{Preparation of the Environment}
+\label{sec:environment}
+
+The experiments were carried out on a standard Linux machine with a CPU
+only installation. The environment consists of Python~3.12 with the
+packages PyTorch~2.8, torchvision, NumPy and Matplotlib. The MNIST raw
+files were downloaded once from the official mirror and stored in the
+project folder, so that the experiments can run without further downloads.
+The installation and execution requires only the following commands:
+
+\begin{lstlisting}[language=bash, caption={Installation and execution of
+the experiment suite.}, label={lst:commands}]
+pip install torch torchvision numpy matplotlib
+cd moe_continual_learning/src
+python3 run_experiments.py   # main experiment suite
+python3 run_ablation.py      # load balancing ablation
+python3 run_v2.py            # input level architecture variant
+python3 make_figures.py      # figures for the report
+python3 make_tables.py       # LaTeX tables for the report
+\end{lstlisting}
+
+\section{Execution of the Experiments}
+\label{sec:execution}
+
+The main experiment driver runs the full comparison matrix: four approaches
+(naive MLP, MLP with EWC, wide MLP, MoE), two benchmarks (SplitMNIST and
+PermutedMNIST) and three random seeds, which results in 24 complete
+continual training runs. Before the construction of every model, the global
+random seed is reset, so that all approaches start from comparable initial
+conditions; the task permutations of PermutedMNIST are also derived from
+the seed. After every training stage, the current accuracy row is printed
+and stored, so the progress can be followed in the log file. A typical log
+line looks as follows:
+
+\begin{lstlisting}[caption={Example lines of the experiment log.},
+label={lst:log}]
+[split_mnist] seed=0 MoE: avg_acc=0.9523 forgetting=0.0561 bwt=-0.0561
+[permuted_mnist] seed=2 MLP + EWC: avg_acc=0.9490 forgetting=0.0354
+\end{lstlisting}
+
+The results are written to disk after every single run. This proved to be
+important in practice: during the project, one experiment process was
+terminated by the operating system because of high memory usage, and thanks
+to the incremental storage, no completed run had to be repeated. After this
+incident, the PermutedMNIST loader was changed to apply the permutation on
+the fly instead of materialising a copy of the whole data set per task,
+which reduced the memory consumption of the benchmark clearly.
+
+The runtime of a single continual training run over five tasks lies between
+$18\,\mathrm{s}$ (naive MLP on SplitMNIST) and $430\,\mathrm{s}$ (MoE on
+PermutedMNIST) on the CPU. The complete main suite takes about one hour,
+the ablation about 20 minutes and the architecture variant about 25
+minutes.
+
+\section{Reproducibility Measures}
+\label{sec:reproducibility}
+
+Several measures were taken so that every number in this report can be
+traced back to a concrete training run. All random choices are controlled
+by seeds: the initialisation of every model, the data order of every
+training run and the pixel permutations of PermutedMNIST. As a consequence,
+repeated executions of the suite produce identical results, which was
+verified explicitly when the suite had to be restarted after the incident
+described above. The raw results of every run are stored as JSON files, and
+the router profiles are stored separately as compressed NumPy archives.
+Finally, all figures and all result tables of Chapter~7 were generated
+directly from these stored results by the two scripts
+\texttt{make\_figures.py} and \texttt{make\_tables.py}; no number was
+copied by hand.

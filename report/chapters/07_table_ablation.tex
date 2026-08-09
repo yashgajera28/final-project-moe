@@ -1,0 +1,16 @@
+\begin{table}[H]
+  \centering
+  \small
+  \caption{Ablation of the load-balancing coefficient $\alpha$ on PermutedMNIST (mean $\pm$ std over three seeds).}
+  \label{tab:ablation}
+  \resizebox{\textwidth}{!}{%
+  \begin{tabular}{lccc}
+    \toprule
+    \textbf{MoE variant} & \textbf{Avg.\ accuracy} $\uparrow$ & \textbf{Avg.\ forgetting} $\downarrow$ & \textbf{BWT} $\uparrow$ \\
+    \midrule
+    MoE ($\alpha = 0.01$, main setting) & $0.7307 \pm 0.0365$ & $0.3063 \pm 0.0458$ & $-0.3063 \pm 0.0458$ \\
+    MoE ($\alpha = 0.0$) & $0.7935 \pm 0.0103$ & $0.2293 \pm 0.0127$ & $-0.2293 \pm 0.0127$ \\
+    MoE ($\alpha = 0.001$) & $0.7493 \pm 0.0101$ & $0.2851 \pm 0.0129$ & $-0.2851 \pm 0.0129$ \\
+    \bottomrule
+  \end{tabular}}%
+\end{table}

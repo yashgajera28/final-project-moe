@@ -1,0 +1,29 @@
+\chapter{Source Code}
+\label{chap:code}
+
+This appendix prints the complete source code of the core modules. The
+experiment drivers and the scripts for figures and tables follow the same
+style and are part of the submitted project folder together with all raw
+result files.
+
+\section{Benchmark Construction (\texttt{datasets.py})}
+\lstinputlisting[language=Python]{../moe_continual_learning/src/datasets.py}
+
+\section{Models (\texttt{models.py})}
+\lstinputlisting[language=Python]{../moe_continual_learning/src/models.py}
+
+\section{Strategies and Metrics (\texttt{continual.py})}
+\lstinputlisting[language=Python]{../moe_continual_learning/src/continual.py}
+
+\chapter{Experiment Driver and Logs}
+\label{chap:logs}
+
+\section{Experiment Driver (\texttt{run\_experiments.py})}
+\lstinputlisting[language=Python]{../moe_continual_learning/src/run_experiments.py}
+
+\section{Experiment Log}
+\label{sec:fulllog}
+The following listing shows the complete log of the main experiment suite.
+Every line documents one continual training run with its final metrics.
+
+\lstinputlisting[language={}, basicstyle=\ttfamily\scriptsize]{../moe_continual_learning/results/experiment_log2.txt}

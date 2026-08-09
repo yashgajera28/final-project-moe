@@ -1,0 +1,87 @@
+\chapter{Summary and Outlook}
+\label{chap:summary}
+
+\section{Achieved Results}
+\label{sec:achieved}
+
+The goal of this project was to find out whether a Mixture of Experts model
+can learn new data step by step without losing the knowledge it acquired
+earlier, and how the router of such a model contributes to this. All five
+goals that were fixed in Section~1.3 were reached.
+
+First, the theoretical foundation was worked out. Catastrophic forgetting
+happens because every parameter of a dense network takes part in every
+task, so the gradient updates for a new task overwrite the solutions of the
+earlier ones. The Mixture of Experts architecture attacks exactly this root
+cause by routing every input through only a subset of its parameters.
+
+Second, a Mixture of Experts model with a trainable router was designed and
+implemented, together with two MNIST based benchmarks and three comparison
+approaches, all in a clean and fully reproducible experimental framework.
+
+Third and fourth, the model was trained sequentially on SplitMNIST and
+PermutedMNIST and compared quantitatively with a naive baseline, a capacity
+matched wide baseline and EWC. On SplitMNIST, the MoE model forgets clearly
+less than both baselines. On PermutedMNIST, the first architecture failed,
+and the detailed analysis of this failure became one of the most valuable
+results of the project: a too strong load balancing loss forces all tasks
+to share all experts, and the shared trunk in front of the router stores
+exactly the task specific information of this benchmark. An architecture
+variant with routing directly at the input, which was derived from this
+analysis, reaches the best retention of all compared approaches on
+SplitMNIST and recovers a large part of the lost retention on
+PermutedMNIST.
+
+Fifth, the router analysis showed at the mechanism level how the protection
+works. Different tasks are routed to different expert subsets, so the
+gradient updates of a new task mainly rewrite parameters that carry little
+old knowledge. The analysis also showed under which conditions this
+mechanism fails, namely when the router cannot see the information that
+distinguishes the tasks.
+
+Beyond the numbers, the project gave me exactly the practical experience
+that was hoped for in the proposal: from the theory of catastrophic
+forgetting, through the design and implementation of a non trivial
+architecture, to the disciplined experimental evaluation of a research
+hypothesis, including an unexpected negative result and its resolution.
+
+\section{Outlook}
+\label{sec:outlook}
+
+The results of this work can be extended and transferred in several ways.
+
+\subsection{Extensibility of the Results}
+
+On the architectural side, the model could grow new experts when the router
+saturates, which corresponds to the nice to have requirement N2 of
+Section~3.3 and would combine the MoE routing with the idea of progressive
+networks while keeping the growth sublinear. A gate consistency
+regulariser, which punishes changes of the routing distribution on new
+data, could stabilise the task to expert assignment further. The load
+balancing coefficient, which turned out to be a continual learning
+hyperparameter in this project, could be scheduled over time, for example
+strong at the beginning of a task and weak afterwards.
+
+A second direction concerns the combination of mechanisms. The evaluation
+showed that EWC and MoE protect knowledge in complementary ways: EWC
+protects important weights wherever they are, while routing separates
+tasks structurally. A routed architecture with a light quadratic penalty
+on the shared components, especially on the trunk and the gate itself, is
+therefore a natural next step. The input level variant also leaves room
+for improvement on PermutedMNIST: its shared hidden layer behind the
+experts still mixes all permutations, so a second routed stage could close
+the remaining gap to the naive baseline.
+
+\subsection{Transferability of the Results}
+
+On the evaluation side, the approach should be transferred to convolutional
+backbones and harder benchmarks such as Split CIFAR-10 or Split
+FashionMNIST, and it should be tested in the class incremental scenario,
+where the router could additionally serve as a learned task inference
+module. The comparison should also be extended to replay based methods,
+which were deliberately excluded here. Finally, in the context of very
+large pre-trained models, where sparsely gated MoE layers are already
+standard, the present results add a small but concrete piece of evidence
+that expert routing is not only a capacity scaling device but also a
+promising mechanism for lifelong learning, provided the routing is placed
+where the tasks actually differ.

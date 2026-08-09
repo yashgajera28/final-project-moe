@@ -1,0 +1,24 @@
+\begin{table}[H]
+  \centering
+  \small
+  \caption{Input-level MoE compared to all approaches on both benchmarks (mean $\pm$ std over three seeds).}
+  \label{tab:v2}
+  \resizebox{\textwidth}{!}{%
+  \begin{tabular}{llccc}
+    \toprule
+    \textbf{Benchmark} & \textbf{Approach} & \textbf{Avg.\ accuracy} $\uparrow$ & \textbf{Avg.\ forgetting} $\downarrow$ & \textbf{BWT} $\uparrow$ \\
+    \midrule
+    \multirow{5}{*}{PermutedMNIST} & Naive MLP & $0.8036 \pm 0.0121$ & $0.2179 \pm 0.0144$ & $-0.2179 \pm 0.0144$ \\
+    & MLP + EWC & $0.9318 \pm 0.0141$ & $0.0566 \pm 0.0172$ & $-0.0566 \pm 0.0172$ \\
+    & Wide MLP (naive) & $0.9051 \pm 0.0139$ & $0.0933 \pm 0.0182$ & $-0.0933 \pm 0.0182$ \\
+    & MoE & $0.7307 \pm 0.0365$ & $0.3063 \pm 0.0458$ & $-0.3063 \pm 0.0458$ \\
+    & MoE (input-level) & $0.7836 \pm 0.0313$ & $0.2344 \pm 0.0388$ & $-0.2344 \pm 0.0388$ \\
+    \midrule
+    \multirow{5}{*}{SplitMNIST} & Naive MLP & $0.9256 \pm 0.0295$ & $0.0890 \pm 0.0375$ & $-0.0890 \pm 0.0375$ \\
+    & MLP + EWC & $0.9528 \pm 0.0257$ & $0.0551 \pm 0.0320$ & $-0.0551 \pm 0.0320$ \\
+    & Wide MLP (naive) & $0.9135 \pm 0.0199$ & $0.1057 \pm 0.0249$ & $-0.1057 \pm 0.0249$ \\
+    & MoE & $0.9375 \pm 0.0218$ & $0.0741 \pm 0.0271$ & $-0.0741 \pm 0.0271$ \\
+    & MoE (input-level) & $0.9647 \pm 0.0149$ & $0.0391 \pm 0.0183$ & $-0.0391 \pm 0.0183$ \\
+    \bottomrule
+  \end{tabular}}%
+\end{table}
